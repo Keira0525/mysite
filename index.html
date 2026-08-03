@@ -111,9 +111,9 @@
 
 <div class="legend">
   <strong style="font-size:12px;">Ticket 儲存格顏色：</strong>
-  <div class="legend-item"><div class="legend-dot" style="background:#FFC000"></div>橘 #FFC000</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#EA7500"></div>橘 #FFC000</div>
   <div class="legend-item"><div class="legend-dot" style="background:#92D050"></div>綠 #92D050</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#D4A800"></div>黃 #FFFF00（顯示為琥珀黃）</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FFFF37;border:1px solid #ccc"></div>黃 #FFFF00</div>
   <div class="legend-item"><div class="legend-dot" style="background:#00B0F0"></div>藍 #00B0F0</div>
   <span style="margin-left:16px;color:#aaa;">｜</span>
   <strong style="font-size:12px;">狀態（條形色）：</strong>
@@ -185,9 +185,11 @@ function pct(d) {
   return Math.max(0, Math.min(100, dayOffset(d) / TOTAL_DAYS * 100));
 }
 
-// #FFFF00 純黃在白底幾乎不可見，改用琥珀黃顯示
+// 調整顯示色：黃→亮黃 #FFFF37，橘→深橘 #EA7500
 function visColor(tc) {
-  return tc === '#FFFF00' ? '#D4A800' : tc;
+  if (tc === '#FFFF00') return '#FFFF37';
+  if (tc === '#FFC000') return '#EA7500';
+  return tc;
 }
 
 function barClass(status) {
