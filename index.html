@@ -113,7 +113,7 @@
   <strong style="font-size:12px;">Ticket 儲存格顏色：</strong>
   <div class="legend-item"><div class="legend-dot" style="background:#FFC000"></div>橘 #FFC000</div>
   <div class="legend-item"><div class="legend-dot" style="background:#92D050"></div>綠 #92D050</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#FFFF00;border:1px solid #ccc"></div>黃 #FFFF00</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#D4A800"></div>黃 #FFFF00（顯示為琥珀黃）</div>
   <div class="legend-item"><div class="legend-dot" style="background:#00B0F0"></div>藍 #00B0F0</div>
   <span style="margin-left:16px;color:#aaa;">｜</span>
   <strong style="font-size:12px;">狀態（條形色）：</strong>
@@ -130,19 +130,18 @@
 const RAW = [
   // Q3 2026
   {quarter:'Q3 2026',ticket:'S2022120023',subject:'請確認資料導出能否調整架構',fn:'System',status:'D2. Coding',ai_eta:'2026/8/14',go_live:'',tc:'#FFC000'},
-  {quarter:'Q3 2026',ticket:'S2023120015',subject:'KBO Information (UCS Integration)',fn:'RMA',status:'D1. Wait for Coding',ai_eta:'2026/7/31',go_live:'',tc:'#92D050'},
   {quarter:'Q3 2026',ticket:'S2024100129',subject:'串接Survey資料',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/9/25',go_live:'',tc:'#FFC000'},
   {quarter:'Q3 2026',ticket:'S2025050055',subject:'Call Center CID/OOW查詢維修價格功能',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/8/28',go_live:'',tc:'#FFFF00'},
-  {quarter:'Q3 2026',ticket:'S2025070066',subject:'CMS KB Search Enhancement',fn:'KB',status:'A1. Pending',ai_eta:'2026/9/25',go_live:'',tc:'#FFFF00'},
   {quarter:'Q3 2026',ticket:'S2025120069',subject:'CMS Close Reason - Duplicate Case條件',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/8/21',go_live:'',tc:'#FFFF00'},
   {quarter:'Q3 2026',ticket:'S2025120072',subject:'System Block Mechanism for BBY RMA Information',fn:'RMA',status:'F2. UAT',ai_eta:'2026/8/7',go_live:'',tc:'#FFC000'},
   {quarter:'Q3 2026',ticket:'S2026010089',subject:'CMS Close Reason條件調整',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/8/28',go_live:'',tc:'#FFFF00'},
-  {quarter:'Q3 2026',ticket:'S2026020017',subject:'[ACI] Agent friendly UI and Feature request',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/9/25',go_live:'',tc:'#FFFF00'},
   {quarter:'Q3 2026',ticket:'S2026040101',subject:'Pass Case Out of Office / Reassign Setting',fn:'Pass Case',status:'A1. Pending',ai_eta:'2026/8/28',go_live:'',tc:'#92D050'},
-  {quarter:'Q3 2026',ticket:'S2026050013',subject:'One-Click Transfer Condition Adjustment',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/7/31',go_live:'',tc:'#FFC000'},
-  {quarter:'Q3 2026',ticket:'S2026050022',subject:'CMS Contact Mobile Number',fn:'Contact',status:'F2. UAT',ai_eta:'2026/7/31',go_live:'',tc:'#FFC000'},
-  {quarter:'Q3 2026',ticket:'S2026050129',subject:'AM中手動建案mail group預設值調整',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/7/31',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2026050129',subject:'AM中手動建案mail group預設值調整',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/8/5',go_live:'',tc:'#FFC000'},
   {quarter:'Q3 2026',ticket:'S2026060049',subject:'Add Fields to CMS Email Drafts Page & Query Form',fn:'RMA',status:'D2. Coding',ai_eta:'2026/8/28',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2025070066',subject:'CMS KB Search Enhancement',fn:'KB',status:'A1. Pending',ai_eta:'2026/9/25',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q3 2026',ticket:'S2026020017',subject:'[ACI] Agent friendly UI and Feature request',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/9/25',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q3 2026',ticket:'S2026070091',subject:'Pass Case同步TM transfer Call Case No功能修改',fn:'Pass Case',status:'D2. Coding',ai_eta:'2026/8/28',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2026070116',subject:'RMA Priority Repair快修服務',fn:'RMA',status:'D2. Coding',ai_eta:'2026/8/28',go_live:'',tc:'#FFC000'},
   // Q4 2026
   {quarter:'Q4 2026',ticket:'S2023090032',subject:'Product Catalog in Pass Case Skill and RMA Center',fn:'RMA',status:'A1. Pending',ai_eta:'2026/12/4',go_live:'',tc:'#92D050'},
   {quarter:'Q4 2026',ticket:'S2025020113',subject:'案例表單布局 (3)',fn:'System',status:'A1. Pending',ai_eta:'2026/10/9',go_live:'',tc:'#FFFF00'},
@@ -184,6 +183,11 @@ function dayOffset(d) {
 
 function pct(d) {
   return Math.max(0, Math.min(100, dayOffset(d) / TOTAL_DAYS * 100));
+}
+
+// #FFFF00 純黃在白底幾乎不可見，改用琥珀黃顯示
+function visColor(tc) {
+  return tc === '#FFFF00' ? '#D4A800' : tc;
 }
 
 function barClass(status) {
@@ -285,7 +289,7 @@ function renderGantt() {
       // If go_live available and different, draw a second "actual" marker
       const bClass = barClass(item.status);
       const fClass = fnClass(item.fn);
-      const barStyle = item.tc ? `background:${item.tc};color:${item.tc==='#FFFF00'?'#555':'#fff'};` : '';
+      const barStyle = item.tc ? `background:${visColor(item.tc)};color:#fff;` : '';
       const fnShort = item.fn || '—';
 
       // Grid lines (month separators) behind the bar
@@ -305,7 +309,7 @@ function renderGantt() {
 
       html += `<div class="gantt-row" onmouseenter="showTip(event,'${tooltip.replace(/'/g,"&#39;")}')" onmouseleave="hideTip()">
         <div class="row-label">
-          ${item.tc ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${item.tc};flex:none;"></span>` : ''}
+          ${item.tc ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${visColor(item.tc)};flex:none;"></span>` : ''}
           <span class="ticket-id">${item.ticket}</span>
           <span class="subject-text" title="${item.subject}">${item.subject}</span>
           <span class="func-tag ${fClass}">${fnShort}</span>
