@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>CMS Requirements Gantt Chart</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; color: #333; }
+
+  .header { background: #1a237e; color: white; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .header .subtitle { font-size: 12px; opacity: 0.7; margin-top: 3px; }
+
+  .toolbar { background: white; padding: 12px 28px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filter-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid #ccc; background: white; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+  .filter-btn:hover { border-color: #1a237e; color: #1a237e; }
+  .filter-btn.active { background: #1a237e; color: white; border-color: #1a237e; }
+  .count-badge { background: #e8eaf6; color: #1a237e; border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+
+  .gantt-wrap { padding: 20px 28px; overflow-x: auto; }
+  .gantt-container { min-width: 1100px; }
+
+  /* Timeline header */
+  .timeline-header { display: flex; margin-left: 320px; margin-bottom: 4px; }
+  .month-cell { flex: none; text-align: center; font-size: 10px; color: #666; border-left: 1px solid #ddd; padding: 2px 0; }
+  .quarter-label { position: absolute; font-size: 11px; font-weight: 700; color: #1a237e; }
+
+  /* Quarter section */
+  .quarter-section { margin-bottom: 16px; }
+  .quarter-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; padding: 6px 10px; border-radius: 6px; font-size: 13px; font-weight: 700; }
+  .q3-25 { background: #e3f2fd; color: #0d47a1; }
+  .q4-25 { background: #e8f5e9; color: #1b5e20; }
+  .q3-26 { background: #fff3e0; color: #e65100; }
+  .q4-26 { background: #fce4ec; color: #880e4f; }
+  .q1-27 { background: #f3e5f5; color: #4a148c; }
+
+  /* Row */
+  .gantt-row { display: flex; align-items: center; margin-bottom: 3px; min-height: 30px; }
+  .gantt-row:hover .row-label { background: #f0f0f0; }
+  .gantt-row:hover .gantt-track { background: #fafafa; }
+
+  .row-label { width: 320px; flex: none; padding: 4px 8px; font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: default; }
+  .ticket-id { font-family: monospace; color: #888; font-size: 10px; white-space: nowrap; }
+  .subject-text { color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+  .func-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px; white-space: nowrap; flex: none; }
+
+  .gantt-track { flex: 1; position: relative; height: 30px; border-left: 1px solid #eee; }
+  .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #f44336; opacity: 0.6; z-index: 5; }
+  .today-line::after { content: 'Today'; position: absolute; top: -14px; left: -10px; font-size: 9px; color: #f44336; white-space: nowrap; }
+
+  .gantt-bar { position: absolute; height: 20px; top: 5px; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; font-size: 9px; color: white; font-weight: 600; white-space: nowrap; overflow: hidden; min-width: 8px; cursor: default; transition: opacity 0.2s; }
+  .gantt-bar:hover { opacity: 0.85; z-index: 10; }
+  .gantt-bar .bar-label { overflow: hidden; text-overflow: ellipsis; }
+
+  .month-grid { position: absolute; top: 0; bottom: 0; border-left: 1px solid #eee; pointer-events: none; }
+  .quarter-grid { position: absolute; top: 0; bottom: 0; border-left: 2px solid #ccc; pointer-events: none; }
+
+  /* Status colors */
+  .bar-prd { background: #42a5f5; }
+  .bar-coding { background: #66bb6a; }
+  .bar-uat { background: #ffa726; }
+  .bar-pending { background: #bdbdbd; }
+  .bar-cancel { background: #ef5350; opacity: 0.6; }
+  .bar-done { background: #26a69a; }
+
+  /* Function tag colors */
+  .fn-report { background: #e3f2fd; color: #1565c0; }
+  .fn-rma { background: #fff3e0; color: #e65100; }
+  .fn-system { background: #f3e5f5; color: #6a1b9a; }
+  .fn-callcase { background: #e8f5e9; color: #2e7d32; }
+  .fn-mail { background: #fce4ec; color: #ad1457; }
+  .fn-kb { background: #e0f2f1; color: #00695c; }
+  .fn-other { background: #f5f5f5; color: #616161; }
+
+  .legend { display: flex; gap: 16px; padding: 12px 28px; background: white; border-top: 1px solid #eee; flex-wrap: wrap; font-size: 11px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+  .stats { display: flex; gap: 20px; padding: 10px 28px; background: white; border-bottom: 1px solid #eee; }
+  .stat-card { text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 700; color: #1a237e; }
+  .stat-label { font-size: 11px; color: #888; }
+
+  .tooltip { position: fixed; background: #333; color: white; padding: 8px 12px; border-radius: 6px; font-size: 11px; pointer-events: none; z-index: 999; max-width: 280px; line-height: 1.6; display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header h1">CMS Requirements — Gantt Chart</div>
+    <div class="subtitle">Q3/Q4 2026 ・ Q1 2027　｜　AI ETA 為判斷基準　｜　Timeline: 2026 Aug → 2027 Mar</div>
+  </div>
+  <div style="font-size:12px;opacity:0.7;">Generated: 2026-07-31</div>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="toolbar">
+  <span style="font-size:12px;color:#666;">篩選季度：</span>
+  <button class="filter-btn active" onclick="filterQuarter('all')">全部</button>
+  <button class="filter-btn" onclick="filterQuarter('Q3 2026')">Q3 2026</button>
+  <button class="filter-btn" onclick="filterQuarter('Q4 2026')">Q4 2026</button>
+  <button class="filter-btn" onclick="filterQuarter('Q1 2027')">Q1 2027</button>
+  <span style="margin-left:auto;font-size:12px;color:#888;">共 <span id="visible-count" class="count-badge">49</span> 筆</span>
+</div>
+
+<div class="gantt-wrap">
+  <div class="gantt-container" id="gantt"></div>
+</div>
+
+<div class="legend">
+  <strong style="font-size:12px;">Ticket 儲存格顏色：</strong>
+  <div class="legend-item"><div class="legend-dot" style="background:#FFC000"></div>橘 #FFC000</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#92D050"></div>綠 #92D050</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FFFF00;border:1px solid #ccc"></div>黃 #FFFF00</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00B0F0"></div>藍 #00B0F0</div>
+  <span style="margin-left:16px;color:#aaa;">｜</span>
+  <strong style="font-size:12px;">狀態（條形色）：</strong>
+  <div class="legend-item"><div class="legend-dot bar-coding"></div>Coding</div>
+  <div class="legend-item"><div class="legend-dot bar-uat"></div>UAT</div>
+  <div class="legend-item"><div class="legend-dot bar-pending"></div>Pending</div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// 僅保留 Ticket 欄位有顏色的資料（共 27 筆）
+// 顏色說明: #FFC000=橘, #92D050=綠, #FFFF00=黃, #00B0F0=藍
+const RAW = [
+  // Q3 2026
+  {quarter:'Q3 2026',ticket:'S2022120023',subject:'請確認資料導出能否調整架構',fn:'System',status:'D2. Coding',ai_eta:'2026/8/14',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2023120015',subject:'KBO Information (UCS Integration)',fn:'RMA',status:'D1. Wait for Coding',ai_eta:'2026/7/31',go_live:'',tc:'#92D050'},
+  {quarter:'Q3 2026',ticket:'S2024100129',subject:'串接Survey資料',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/9/25',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2025050055',subject:'Call Center CID/OOW查詢維修價格功能',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/8/28',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q3 2026',ticket:'S2025070066',subject:'CMS KB Search Enhancement',fn:'KB',status:'A1. Pending',ai_eta:'2026/9/25',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q3 2026',ticket:'S2025120069',subject:'CMS Close Reason - Duplicate Case條件',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/8/21',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q3 2026',ticket:'S2025120072',subject:'System Block Mechanism for BBY RMA Information',fn:'RMA',status:'F2. UAT',ai_eta:'2026/8/7',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2026010089',subject:'CMS Close Reason條件調整',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/8/28',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q3 2026',ticket:'S2026020017',subject:'[ACI] Agent friendly UI and Feature request',fn:'Call Case',status:'A1. Pending',ai_eta:'2026/9/25',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q3 2026',ticket:'S2026040101',subject:'Pass Case Out of Office / Reassign Setting',fn:'Pass Case',status:'A1. Pending',ai_eta:'2026/8/28',go_live:'',tc:'#92D050'},
+  {quarter:'Q3 2026',ticket:'S2026050013',subject:'One-Click Transfer Condition Adjustment',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/7/31',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2026050022',subject:'CMS Contact Mobile Number',fn:'Contact',status:'F2. UAT',ai_eta:'2026/7/31',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2026050129',subject:'AM中手動建案mail group預設值調整',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/7/31',go_live:'',tc:'#FFC000'},
+  {quarter:'Q3 2026',ticket:'S2026060049',subject:'Add Fields to CMS Email Drafts Page & Query Form',fn:'RMA',status:'D2. Coding',ai_eta:'2026/8/28',go_live:'',tc:'#FFC000'},
+  // Q4 2026
+  {quarter:'Q4 2026',ticket:'S2023090032',subject:'Product Catalog in Pass Case Skill and RMA Center',fn:'RMA',status:'A1. Pending',ai_eta:'2026/12/4',go_live:'',tc:'#92D050'},
+  {quarter:'Q4 2026',ticket:'S2025020113',subject:'案例表單布局 (3)',fn:'System',status:'A1. Pending',ai_eta:'2026/10/9',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q4 2026',ticket:'S2025020115',subject:'系統速度優化 (4)',fn:'System',status:'A1. Pending',ai_eta:'2026/12/4',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q4 2026',ticket:'S2025120038',subject:'[ACI] Remote booking feature request',fn:'Call Case',status:'D2. Coding',ai_eta:'2026/10/30',go_live:'',tc:'#FFC000'},
+  {quarter:'Q4 2026',ticket:'S2026010009',subject:'Problem Code整合Claim Code',fn:'KB',status:'A1. Pending',ai_eta:'2026/10/30',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q4 2026',ticket:'S2026060065',subject:'CMS自動翻譯功能',fn:'System',status:'A1. Pending',ai_eta:'2026/12/18',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q4 2026',ticket:'S2023070100',subject:'新增快速寄發信件功能(requested from ACG)',fn:'Mail',status:'A1. Pending',ai_eta:'2026/10/16',go_live:'',tc:'#00B0F0'},
+  {quarter:'Q4 2026',ticket:'S2023110019',subject:'Videoplayback - CMS attachments',fn:'Attachment',status:'A1. Pending',ai_eta:'2026/12/18',go_live:'',tc:'#00B0F0'},
+  // Q1 2027
+  {quarter:'Q1 2027',ticket:'S2023060038',subject:'Remove BBY unit from remote code pop up message',fn:'Call Case',status:'A1. Pending',ai_eta:'2027/3/26',go_live:'',tc:'#92D050'},
+  {quarter:'Q1 2027',ticket:'S2023070096',subject:'Claim Code API 多語整合',fn:'RMA',status:'A1. Pending',ai_eta:'2027/1/15',go_live:'',tc:'#FFFF00'},
+  {quarter:'Q1 2027',ticket:'S2024060044',subject:'FedEx function for RMAs from UCS and Online',fn:'RMA',status:'D1. Wait for Coding',ai_eta:'2027/1/1',go_live:'',tc:'#92D050'},
+  {quarter:'Q1 2027',ticket:'S2024060053',subject:'Address Change from CMS to RMA',fn:'RMA',status:'A1. Pending',ai_eta:'2027/3/12',go_live:'',tc:'#92D050'},
+  {quarter:'Q1 2027',ticket:'S2025020116',subject:'流程簡化 (2)',fn:'System',status:'A1. Pending',ai_eta:'2027/2/26',go_live:'',tc:'#FFFF00'},
+];
+
+// Timeline: Jul 2025 → Mar 2027 = 21 months
+const TIMELINE_START = new Date('2026-08-01');
+const TIMELINE_END   = new Date('2027-04-01');
+const TOTAL_DAYS = (TIMELINE_END - TIMELINE_START) / 86400000;
+const TRACK_W = 760; // px
+
+function parseDate(str) {
+  if (!str || str.trim() === '' || str === '　') return null;
+  if (/^\d{6}$/.test(str)) {
+    const y = str.slice(0,4), m = parseInt(str.slice(4,6))-1;
+    return new Date(y, m, 1);
+  }
+  // YYYY/M/D
+  const parts = str.split('/');
+  if (parts.length === 3) return new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  return null;
+}
+
+function dayOffset(d) {
+  return (d - TIMELINE_START) / 86400000;
+}
+
+function pct(d) {
+  return Math.max(0, Math.min(100, dayOffset(d) / TOTAL_DAYS * 100));
+}
+
+function barClass(status) {
+  if (!status) return 'bar-pending';
+  const s = status.toLowerCase();
+  if (s.includes('cancel')) return 'bar-cancel';
+  if (s.includes('uat')) return 'bar-uat';
+  if (s.includes('coding')) return 'bar-coding';
+  if (s.includes('pending') || s.includes('clarify') || s.includes('wait')) return 'bar-pending';
+  if (s === 'prd') return 'bar-prd';
+  return 'bar-prd';
+}
+
+function fnClass(fn) {
+  if (!fn) return 'fn-other';
+  const f = fn.toLowerCase();
+  if (f.includes('report')) return 'fn-report';
+  if (f.includes('rma')) return 'fn-rma';
+  if (f.includes('system') || f.includes('permission') || f.includes('attach')) return 'fn-system';
+  if (f.includes('call') || f.includes('contact') || f.includes('pass') || f.includes('aci')) return 'fn-callcase';
+  if (f.includes('mail') || f.includes('genio')) return 'fn-mail';
+  if (f.includes('kb') || f.includes('problem')) return 'fn-kb';
+  return 'fn-other';
+}
+
+// Build months array
+function buildMonths() {
+  const months = [];
+  let d = new Date(TIMELINE_START);
+  while (d < TIMELINE_END) {
+    months.push(new Date(d));
+    d.setMonth(d.getMonth()+1);
+  }
+  return months;
+}
+
+const QUARTERS = [
+  { key: 'Q3 2026',    label: 'Q3 2026',    cls: 'q3-26' },
+  { key: 'Q4 2026',    label: 'Q4 2026',    cls: 'q4-26' },
+  { key: 'Q1 2027',    label: 'Q1 2027',    cls: 'q1-27' },
+];
+
+let activeFilter = 'all';
+
+function filterQuarter(q) {
+  activeFilter = q;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderGantt();
+}
+
+function renderGantt() {
+  const months = buildMonths();
+  const today = new Date('2026-08-01');
+  const todayPct = pct(today);
+
+  const filtered = activeFilter === 'all' ? RAW : RAW.filter(r => r.quarter === activeFilter);
+  document.getElementById('visible-count').textContent = filtered.length;
+
+  // Month header
+  const headerCells = months.map(m => {
+    const w = (1/TOTAL_DAYS) * 30.44 * 100; // approx month width %
+    const label = m.toLocaleDateString('zh-TW', {year:'2-digit', month:'short'});
+    return `<div class="month-cell" style="width:${TRACK_W/months.length}px">${label}</div>`;
+  }).join('');
+
+  let html = `<div style="display:flex;margin-left:320px;margin-bottom:2px;">${headerCells}</div>`;
+
+  const quartersToShow = activeFilter === 'all'
+    ? QUARTERS
+    : QUARTERS.filter(q => q.key === activeFilter);
+
+  quartersToShow.forEach(qtr => {
+    const rows = filtered.filter(r => r.quarter === qtr.key);
+    if (!rows.length) return;
+
+    html += `<div class="quarter-section" data-quarter="${qtr.key}">
+      <div class="quarter-header ${qtr.cls}">
+        ${qtr.label} <span class="count-badge">${rows.length} 項</span>
+      </div>`;
+
+    rows.forEach(item => {
+      const etaDate = parseDate(item.ai_eta);
+      const liveDate = item.go_live ? parseDate(item.go_live) : null;
+
+      let barStart = etaDate ? pct(etaDate) : 0;
+      let barWidth = 1.5; // default 1 week ish
+
+      if (etaDate) {
+        // If YYYYMM format: span the whole month
+        if (/^\d{6}$/.test(item.ai_eta)) {
+          const nextMonth = new Date(etaDate); nextMonth.setMonth(nextMonth.getMonth()+1);
+          barWidth = pct(nextMonth) - barStart;
+        } else {
+          barWidth = 1.8; // ~2 weeks
+        }
+      }
+
+      // If go_live available and different, draw a second "actual" marker
+      const bClass = barClass(item.status);
+      const fClass = fnClass(item.fn);
+      const barStyle = item.tc ? `background:${item.tc};color:${item.tc==='#FFFF00'?'#555':'#fff'};` : '';
+      const fnShort = item.fn || '—';
+
+      // Grid lines (month separators) behind the bar
+      const gridLines = months.map(m => {
+        const p = pct(m);
+        return `<div class="month-grid" style="left:${p}%"></div>`;
+      }).join('');
+
+      // Live date dot
+      let liveDot = '';
+      if (liveDate) {
+        const lp = pct(liveDate);
+        liveDot = `<div style="position:absolute;top:8px;left:${lp}%;width:10px;height:14px;background:#26a69a;border-radius:2px;transform:translateX(-50%);z-index:3;" title="GO LIVE: ${item.go_live}"></div>`;
+      }
+
+      const tooltip = `${item.ticket}\n${item.subject}\nFunction: ${item.fn||'—'}\nStatus: ${item.status}\nAI ETA: ${item.ai_eta}${item.go_live ? '\nGO LIVE: '+item.go_live : ''}`;
+
+      html += `<div class="gantt-row" onmouseenter="showTip(event,'${tooltip.replace(/'/g,"&#39;")}')" onmouseleave="hideTip()">
+        <div class="row-label">
+          ${item.tc ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${item.tc};flex:none;"></span>` : ''}
+          <span class="ticket-id">${item.ticket}</span>
+          <span class="subject-text" title="${item.subject}">${item.subject}</span>
+          <span class="func-tag ${fClass}">${fnShort}</span>
+        </div>
+        <div class="gantt-track" style="width:${TRACK_W}px;position:relative;">
+          ${gridLines}
+          <div class="today-line" style="left:${todayPct}%"></div>
+          <div class="gantt-bar ${bClass}" style="left:${barStart}%;width:${barWidth}%;${barStyle}">
+            <span class="bar-label"></span>
+          </div>
+          ${liveDot}
+        </div>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  document.getElementById('gantt').innerHTML = html;
+}
+
+function showTip(e, text) {
+  const tip = document.getElementById('tooltip');
+  tip.style.display = 'block';
+  tip.innerHTML = text.replace(/\n/g,'<br>');
+  tip.style.left = (e.clientX+12)+'px';
+  tip.style.top  = (e.clientY+12)+'px';
+}
+function hideTip() { document.getElementById('tooltip').style.display='none'; }
+document.addEventListener('mousemove', e => {
+  const tip = document.getElementById('tooltip');
+  if (tip.style.display !== 'none') {
+    tip.style.left = (e.clientX+12)+'px';
+    tip.style.top  = (e.clientY+12)+'px';
+  }
+});
+
+// Stats
+function renderStats() {
+  const total = RAW.length;
+  const byStatus = {};
+  RAW.forEach(r => {
+    const k = r.status.toLowerCase().includes('cancel') ? 'Cancel'
+      : r.status.toLowerCase().includes('uat') ? 'UAT'
+      : r.status.toLowerCase().includes('coding') ? 'Coding'
+      : r.status.toLowerCase().includes('pending') || r.status.toLowerCase().includes('clarify') || r.status.toLowerCase().includes('wait') ? 'Pending'
+      : 'PRD/規劃';
+    byStatus[k] = (byStatus[k]||0)+1;
+  });
+  const cards = [
+    {n: total, l: '總項目'},
+    {n: byStatus['PRD/規劃']||0, l: 'PRD/規劃中'},
+    {n: (byStatus['Coding']||0)+(byStatus['UAT']||0), l: '開發中/UAT'},
+    {n: byStatus['Pending']||0, l: 'Pending'},
+    {n: byStatus['Cancel']||0, l: 'Cancel'},
+  ];
+  document.getElementById('stats').innerHTML = cards.map(c =>
+    `<div class="stat-card"><div class="stat-num">${c.n}</div><div class="stat-label">${c.l}</div></div>`
+  ).join('');
+}
+
+renderStats();
+renderGantt();
+</script>
+</body>
+</html>
